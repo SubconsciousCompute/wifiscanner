@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn should_parse_iw_dev_scan() {
-        let mut expected: Vec<Wifi> = vec![
+        let expected: Vec<Wifi> = vec![
             Wifi {
                 mac: "11:22:33:44:55:66".to_string(),
                 ssid: "hello".to_string(),
