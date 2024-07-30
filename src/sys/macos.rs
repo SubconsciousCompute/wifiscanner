@@ -1,13 +1,18 @@
-use std::process::Command;
 use anyhow::Context;
+use std::process::Command;
 
 use crate::Wifi;
 
 /// Returns a list of WiFi hotspots in your area.
 pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
-    let output = Command::new("system_profiler").arg("SPAirPortDataType").arg("-json").output()?;
+    let output = Command::new("system_profiler")
+        .arg("SPAirPortDataType")
+        .arg("-json")
+        .output()?;
+    parse_systemprofiler(String::from_utf8_lossy(output.stdout))
+}
 
-
+fn parse_systemprofiler(txt: &str) -> anyhow::Result<Vec<Wifi>> {
     #[derive(serde::Deserialize, Debug)]
     struct SystemProfilerData {
         SPAirPortDataType: Vec<Interfaces>,
@@ -34,7 +39,7 @@ pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
     let text = String::from_utf8_lossy(&output.stdout);
     println!("{text}");
 
-    let data : SystemProfilerData = serde_json::from_str(&text)?;
+    let data: SystemProfilerData = serde_json::from_str(&text)?;
     println!("{data:?}");
 
     Ok(vec![])
@@ -104,6 +109,13 @@ mod tests {
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
+
+    #[test]
+    fn should_parse_system_profiler() {
+        let txt = include_str!("tests/fixtures/systemprofiler/output.txt");
+        let wifis = parse_systemprofiler(&txt).unwrap();
+        println!("{wifis:?}");
+    }
 
     #[test]
     fn should_parse_airport() {
