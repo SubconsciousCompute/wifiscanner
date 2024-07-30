@@ -10,7 +10,7 @@ pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
 
     #[derive(serde::Deserialize, Debug)]
     struct SystemProfilerData {
-        SPAirPortDataType: Vec<Interface>,
+        SPAirPortDataType: Vec<Interfaces>,
     }
 
     #[derive(serde::Deserialize, Debug)]
@@ -20,11 +20,15 @@ pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
 
     #[derive(serde::Deserialize, Debug)]
     struct Interface {
-        spairport_airport_other_local_wireless_networks: Vec<Network>,
+        spairport_airport_other_local_wireless_networks: Option<Vec<WifiPoint>>,
     }
 
     #[derive(serde::Deserialize, Debug)]
-    struct Network {
+    struct WifiPoint {
+        spairport_network_channel: String,
+        spairport_network_phymode: String,
+        spairport_security_mode: String,
+        spairport_signal_noise: String,
     }
 
     let text = String::from_utf8_lossy(&output.stdout);
