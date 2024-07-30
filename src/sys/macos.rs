@@ -1,10 +1,43 @@
-use crate::Wifi;
+use std::process::Command;
 use anyhow::Context;
 
-/// Returns a list of WiFi hotspots in your area - (OSX/MacOS) uses `airport`
-pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
-    use std::process::Command;
+use crate::Wifi;
 
+/// Returns a list of WiFi hotspots in your area.
+pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
+    let output = Command::new("system_profiler").arg("SPAirPortDataType").arg("-json").output()?;
+
+
+    #[derive(serde::Deserialize, Debug)]
+    struct SystemProfilerData {
+        SPAirPortDataType: Vec<Interface>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    struct Interfaces {
+        spairport_airport_interfaces: Vec<Interface>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    struct Interface {
+        spairport_airport_other_local_wireless_networks: Vec<Network>,
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    struct Network {
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    println!("{text}");
+
+    let data : SystemProfilerData = serde_json::from_str(&text)?;
+    println!("{data:?}");
+
+    Ok(vec![])
+}
+
+/// Returns a list of WiFi hotspots in your area - (OSX/MacOS) uses `airport`
+pub(crate) fn scan_using_airport() -> anyhow::Result<Vec<Wifi>> {
     let output = Command::new(
         "/System/Library/PrivateFrameworks/Apple80211.\
          framework/Versions/Current/Resources/airport",
