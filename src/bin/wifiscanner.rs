@@ -4,7 +4,7 @@ fn main() {
     for network in networks {
         println!(
             "{} {:20} {:10} {:4} {}",
-            network.mac, network.ssid, network.channel, network.signal_level, network.security
+            network.mac.unwrap_or("NA".to_string()), network.ssid, network.channel, network.signal_level, network.security
         );
     }
 }

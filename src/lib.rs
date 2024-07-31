@@ -63,10 +63,11 @@ pub enum Error {
 /// Wifi struct used to return information about wifi hotspots
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct Wifi {
-    /// mac address
-    pub mac: String,
+    /// mac address (may be missing on newer version of macos)
+    pub mac: Option<String>,
     /// hotspot name
     pub ssid: String,
+    /// channel
     pub channel: String,
     /// wifi signal strength in dBm
     pub signal_level: String,

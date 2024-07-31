@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 use anyhow::Context;
 use std::process::Command;
 
@@ -9,10 +11,10 @@ pub(crate) fn scan() -> anyhow::Result<Vec<Wifi>> {
         .arg("SPAirPortDataType")
         .arg("-json")
         .output()?;
-    parse_systemprofiler(String::from_utf8_lossy(output.stdout))
+    parse_systemprofiler(String::from_utf8_lossy(&output.stdout).into())
 }
 
-fn parse_systemprofiler(txt: &str) -> anyhow::Result<Vec<Wifi>> {
+fn parse_systemprofiler(text: String) -> anyhow::Result<Vec<Wifi>> {
     #[derive(serde::Deserialize, Debug)]
     struct SystemProfilerData {
         SPAirPortDataType: Vec<Interfaces>,
@@ -26,26 +28,44 @@ fn parse_systemprofiler(txt: &str) -> anyhow::Result<Vec<Wifi>> {
     #[derive(serde::Deserialize, Debug)]
     struct Interface {
         spairport_airport_other_local_wireless_networks: Option<Vec<WifiPoint>>,
+        // spairport_wireless_mac_address: String,
     }
 
     #[derive(serde::Deserialize, Debug)]
     struct WifiPoint {
+        _name: String,
         spairport_network_channel: String,
-        spairport_network_phymode: String,
+        // spairport_network_phymode: String,
         spairport_security_mode: String,
         spairport_signal_noise: String,
     }
 
-    let text = String::from_utf8_lossy(&output.stdout);
-    println!("{text}");
-
     let data: SystemProfilerData = serde_json::from_str(&text)?;
-    println!("{data:?}");
 
-    Ok(vec![])
+    let mut wifis = vec![];
+    for interface in data.SPAirPortDataType.into_iter().map(|x| x.spairport_airport_interfaces).flatten() {
+        for wifi in interface.spairport_airport_other_local_wireless_networks.unwrap_or(vec![]) {
+            let ssid = wifi._name;
+            let channel = wifi.spairport_network_channel;
+            let security = wifi.spairport_security_mode;
+            let security = security.strip_prefix("spairport_security_mode_").unwrap_or(&security).to_string();
+            let signal_level = wifi.spairport_signal_noise.split('/').nth(0).unwrap_or("").trim().to_string();
+
+            wifis.push( crate::Wifi {
+                mac: None,
+                ssid,
+                channel,
+                security,
+                signal_level,
+            })
+        }
+    }
+
+    Ok(wifis)
 }
 
 /// Returns a list of WiFi hotspots in your area - (OSX/MacOS) uses `airport`
+#[allow(dead_code)]
 pub(crate) fn scan_using_airport() -> anyhow::Result<Vec<Wifi>> {
     let output = Command::new(
         "/System/Library/PrivateFrameworks/Apple80211.\
@@ -91,7 +111,7 @@ fn parse_airport(network_list: &str) -> anyhow::Result<Vec<Wifi>> {
         let security = &line[col_security..].trim();
 
         wifis.push(Wifi {
-            mac: mac.to_string(),
+            mac: Some(mac.to_string()),
             ssid: ssid.to_string(),
             channel: channel.to_string(),
             signal_level: signal_level.to_string(),
@@ -112,16 +132,15 @@ mod tests {
 
     #[test]
     fn should_parse_system_profiler() {
-        let txt = include_str!("tests/fixtures/systemprofiler/output.txt");
-        let wifis = parse_systemprofiler(&txt).unwrap();
-        println!("{wifis:?}");
+        let txt = include_str!("../../tests/fixtures/systemprofiler/output.txt");
+        let _wifis = parse_systemprofiler(txt.to_string()).unwrap();
     }
 
     #[test]
     fn should_parse_airport() {
         let mut expected: Vec<Wifi> = Vec::new();
         expected.push(Wifi {
-            mac: "00:35:1a:90:56:03".to_string(),
+            mac: Some("00:35:1a:90:56:03".to_string()),
             ssid: "OurTest".to_string(),
             channel: "112".to_string(),
             signal_level: "-70".to_string(),
@@ -129,7 +148,7 @@ mod tests {
         });
 
         expected.push(Wifi {
-            mac: "00:35:1a:90:56:00".to_string(),
+            mac: Some("00:35:1a:90:56:00".to_string()),
             ssid: "TEST-Wifi".to_string(),
             channel: "1".to_string(),
             signal_level: "-67".to_string(),
